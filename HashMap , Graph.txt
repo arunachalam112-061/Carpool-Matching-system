@@ -1,0 +1,166 @@
+import java.util.*;
+abstract class Person {
+    private String name;
+    private String location;
+    public Person(String name, String location) {
+        this.name = name;
+        this.location = location;
+    }
+    public String getName() { return name; }
+    public String getLocation() { return location; }
+    public void updateLocation(String location) { this.location = location; }
+    public abstract void display();
+}
+class Customer extends Person {
+    private String source;
+    private String drop;
+    public Customer(String customerName, String source, String drop, String pickupLocation) {
+        super(customerName, pickupLocation);
+        this.source = source;
+        this.drop = drop;
+    }
+    public String getSource() { return source; }
+    public String getDestination() { return drop; }
+    public void display() {
+        System.out.println("Customer Name   : " + getName());
+        System.out.println("Source          : " + source);
+        System.out.println("Drop            : " + drop);
+        System.out.println("Pickup Location : " + getLocation());
+    }
+}
+class Driver extends Person {
+    private String carName;
+    private String carNumber;
+    public Driver(String driverName, String carName, String carNumber, String currentLocation) {
+        super(driverName, currentLocation);
+        this.carName = carName;
+        this.carNumber = carNumber;
+    }
+    public void display() {
+        System.out.println("Driver Name     : " + getName());
+        System.out.println("Car Name        : " + carName);
+        System.out.println("Car Number      : " + carNumber);
+        System.out.println("Current Location: " + getLocation());
+    }
+}
+class Ride {
+    private static int counter = 100;
+    private final String rideId;
+    private Driver driver;
+    private Customer customer;
+    public Ride(Driver driver, Customer customer) {
+        this.rideId = "R" + (++counter);
+        this.driver = driver;
+        this.customer = customer;
+    }
+    public String getRideId() { return rideId; }
+    public Driver getDriver() { return driver; }
+    public Customer getCustomer() { return customer; }
+
+    public void displayRide() {
+        System.out.println("\n========== RIDE " + rideId + " ==========");
+        driver.display();
+        System.out.println();
+        customer.display();
+        System.out.println("----------------------------------");
+    }
+}
+class LocationGraph {
+    private HashMap<String, ArrayList<String>> graph = new HashMap<>();
+    public void addLocation(String location) {
+        graph.putIfAbsent(location, new ArrayList<>());
+    }
+    public void addRoute(String source, String destination) {
+        addLocation(source);
+        addLocation(destination);
+        if (!graph.get(source).contains(destination)) graph.get(source).add(destination);
+        if (!graph.get(destination).contains(source)) graph.get(destination).add(source);
+    }
+    public boolean hasRoute(String source, String destination) {
+        return graph.containsKey(source) && graph.get(source).contains(destination);
+    }
+    public void displayGraph() {
+        System.out.println("\n========== ROUTE MAP ==========");
+        for (String location : graph.keySet()) {
+            System.out.print(location + " --> ");
+            for (String next : graph.get(location)) System.out.print(next + " ");
+            System.out.println();
+        }
+    }
+}
+class CarpoolSystem {
+    private HashMap<String, Ride> rideMap = new HashMap<>();
+    private LocationGraph graph = new LocationGraph();
+    public void addRide(Ride ride) {
+        rideMap.put(ride.getRideId(), ride);
+        graph.addRoute(ride.getCustomer().getSource(), ride.getCustomer().getDestination());
+        System.out.println(ride.getRideId() + " (" + ride.getDriver().getName() + ") Ride Added Successfully.");
+    }
+    public void displayAvailableRides() {
+        System.out.println("\n========== AVAILABLE RIDES ==========");
+        if (rideMap.isEmpty()) {
+            System.out.println("No Ride Available");   // FIXED: was "Yes Ride Available"
+            return;
+        }
+        for (Ride ride : rideMap.values()) ride.displayRide();
+    }
+    public void searchRide(String source, String destination) {
+        System.out.println("\nSearching Ride from " + source + " to " + destination + "...");
+        if (!graph.hasRoute(source, destination)) {
+            System.out.println("Ride Not Available");
+            return;
+        }
+        boolean found = false;
+        for (Ride ride : rideMap.values()) {
+            if (ride.getCustomer().getSource().equals(source)
+                    && ride.getCustomer().getDestination().equals(destination)) {
+                ride.displayRide();
+                found = true;
+            }
+        }
+        if (!found) System.out.println("Route exists but no ride currently posted on it.");
+    }
+    public void removeRide(String rideId) {
+        if (rideMap.remove(rideId) != null) {
+            System.out.println(rideId + " Ride Removed Successfully.");
+        } else {
+            System.out.println("Ride Not Found: " + rideId);
+        }
+    }
+    public void displayRoutes() {
+        graph.displayGraph();
+    }
+}
+public class Main {
+    public static void main(String[] args) {
+        CarpoolSystem system = new CarpoolSystem();
+        String[][] driverData = {
+            {"Arun",  "Swift",       "TN38AB1234", "Chennai"},
+            {"Rahul", "Hyundai i20", "TN37CD5678", "Coimbatore"},
+            {"Vijay", "Honda City",  "TN58EF9876", "Madurai"}
+        };
+        String[][] customerData = {
+            {"Karthik", "Chennai",     "Tambaram",     "Chromepet"},
+            {"Suresh",  "Coimbatore",  "Gandhipuram",  "Ukkadam"},
+            {"Priya",   "Madurai",     "Trichy",       "Mattuthavani"}
+        };
+        List<Ride> createdRides = new ArrayList<>();
+        for (int i = 0; i < driverData.length; i++) {
+            Driver driver = new Driver(driverData[i][0], driverData[i][1], driverData[i][2], driverData[i][3]);
+            Customer customer = new Customer(customerData[i][0], customerData[i][1], customerData[i][2], customerData[i][3]);
+            Ride ride = new Ride(driver, customer);
+            createdRides.add(ride);
+            system.addRide(ride);
+        }
+        system.displayAvailableRides();
+        system.displayRoutes();
+        system.searchRide("Chennai", "Tambaram");
+        system.searchRide("Madurai", "Trichy");
+        system.searchRide("Salem", "Erode");
+        createdRides.get(0).getCustomer().updateLocation("Tambaram");
+        System.out.println("\nCustomer pickup Location Updated");
+        createdRides.get(0).getCustomer().display();
+        system.removeRide(createdRides.get(1).getRideId());
+        system.displayAvailableRides();
+    }
+}
